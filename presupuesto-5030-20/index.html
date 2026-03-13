@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Presupuesto">
+  <title>Mi Presupuesto 50/30/20</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; background: #f5f4f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .app { max-width: 430px; margin: 0 auto; padding: 0 0 100px 0; min-height: 100vh; }
+
+    .header { padding: 52px 20px 16px; background: #fff; border-bottom: 1px solid #e8e6e0; display: flex; justify-content: space-between; align-items: flex-end; }
+    .header-left h1 { font-size: 24px; font-weight: 600; color: #1a1a1a; }
+    .header-left p { font-size: 13px; color: #888; margin-top: 3px; }
+    .api-indicator { font-size: 11px; padding: 5px 11px; border-radius: 20px; cursor: pointer; font-weight: 600; white-space: nowrap; }
+    .api-ok { background: #edf7ed; color: #2e7d32; }
+    .api-missing { background: #fdecea; color: #c62828; }
+
+    .setup-banner { margin: 16px; background: #fff8e1; border: 1px solid #ffe082; border-radius: 16px; padding: 18px; }
+    .setup-banner h3 { font-size: 15px; font-weight: 600; color: #e65100; margin-bottom: 10px; }
+    .setup-banner p { font-size: 13px; color: #6d4c41; line-height: 1.6; margin-bottom: 10px; }
+    .setup-banner a { color: #1976d2; }
+    .setup-input-row { display: flex; gap: 8px; }
+    .setup-input { flex: 1; padding: 10px 12px; font-size: 13px; border: 1px solid #ddd; border-radius: 10px; outline: none; background: #fff; color: #1a1a1a; font-family: monospace; }
+    .setup-input:focus { border-color: #378ADD; }
+    .btn-save-key { padding: 10px 16px; border: none; border-radius: 10px; background: #1a1a1a; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+
+    .mic-section { margin: 16px; background: #fff; border-radius: 16px; padding: 24px 16px 20px; text-align: center; border: 1px solid #e8e6e0; }
+    .mic-btn { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #ddd; background: #fafafa; cursor: pointer; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; transition: all 0.2s; font-size: 32px; }
+    .mic-btn:active { transform: scale(0.95); }
+    .mic-btn.listening { border-color: #D85A30; background: #fff5f2; animation: pulse 1.2s infinite; }
+    .mic-btn.processing { border-color: #378ADD; background: #f0f6ff; }
+    @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+    .mic-status { font-size: 14px; color: #666; min-height: 20px; font-weight: 500; }
+    .transcript-box { margin-top: 12px; background: #f5f4f0; border-radius: 10px; padding: 10px 14px; font-size: 14px; color: #333; text-align: left; display: none; line-height: 1.4; }
+    .transcript-box.visible { display: block; }
+    .result-box { margin-top: 10px; padding: 10px 14px; border-radius: 10px; font-size: 13px; display: none; text-align: left; font-weight: 500; line-height: 1.6; white-space: pre-line; }
+    .result-box.ok { display: block; background: #edf7ed; color: #2e7d32; }
+    .result-box.err { display: block; background: #fdecea; color: #c62828; }
+    .hint { font-size: 12px; color: #bbb; text-align: left; padding: 14px 2px 0; line-height: 1.9; }
+    .hint strong { color: #999; font-weight: 600; }
+
+    .income-card { margin: 0 16px 16px; background: #fff; border-radius: 16px; padding: 16px 18px; border: 1px solid #e8e6e0; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    .income-label { font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .income-val { font-size: 26px; font-weight: 700; color: #1a1a1a; }
+    .income-edit { font-size: 12px; color: #378ADD; }
+
+    .donut-card { display: flex; margin: 0 16px 16px; background: #fff; border-radius: 16px; padding: 16px; border: 1px solid #e8e6e0; align-items: center; gap: 20px; }
+    .donut-wrap { position: relative; width: 130px; height: 130px; flex-shrink: 0; }
+    .donut-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .donut-total { font-size: 15px; font-weight: 700; color: #1a1a1a; }
+    .donut-lbl { font-size: 10px; color: #aaa; }
+    .donut-legend { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+    .legend-item { display: flex; align-items: center; gap: 8px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .legend-text { font-size: 12px; color: #888; }
+    .legend-amount { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+
+    .section-title { font-size: 11px; color: #aaa; letter-spacing: 0.07em; text-transform: uppercase; padding: 4px 20px 10px; }
+    .categories { padding: 0 16px; display: flex; flex-direction: column; gap: 12px; }
+    .cat-card { background: #fff; border-radius: 16px; border: 1px solid #e8e6e0; overflow: hidden; }
+    .cat-header { padding: 14px 16px 10px; display: flex; align-items: center; justify-content: space-between; }
+    .cat-left { display: flex; align-items: center; gap: 8px; }
+    .cat-dot { width: 12px; height: 12px; border-radius: 3px; }
+    .cat-name { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+    .cat-pct { font-size: 12px; color: #aaa; margin-left: 2px; }
+    .cat-right { text-align: right; }
+    .cat-budget { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+    .badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; margin-top: 3px; display: inline-block; }
+    .badge-ok { background: #edf7ed; color: #2e7d32; }
+    .badge-warn { background: #fff8e1; color: #f57f17; }
+    .badge-over { background: #fdecea; color: #c62828; }
+    .progress-bar { height: 5px; background: #f0efe9; margin: 0 16px 10px; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+    .expenses-list { border-top: 1px solid #f0efe9; }
+    .expense-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; border-bottom: 1px solid #f0efe9; }
+    .expense-row:last-child { border-bottom: none; }
+    .exp-name { font-size: 14px; color: #1a1a1a; }
+    .exp-date { font-size: 11px; color: #bbb; margin-top: 1px; }
+    .exp-right { display: flex; align-items: center; gap: 10px; }
+    .exp-amount { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+    .del-btn { background: none; border: none; cursor: pointer; font-size: 14px; color: #ccc; padding: 4px; }
+    .empty-msg { padding: 12px 16px; font-size: 13px; color: #ccc; font-style: italic; }
+
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: flex-end; justify-content: center; z-index: 100; }
+    .overlay.active { display: flex; }
+    .modal { background: #fff; border-radius: 20px 20px 0 0; padding: 24px 20px 40px; width: 100%; max-width: 430px; }
+    .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: #1a1a1a; }
+    .modal .modal-sub { font-size: 13px; color: #999; margin-bottom: 16px; line-height: 1.5; }
+    .modal input, .modal select { width: 100%; padding: 12px 14px; font-size: 15px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 12px; outline: none; background: #fafafa; color: #1a1a1a; -webkit-appearance: none; }
+    .modal input[type=password] { font-family: monospace; font-size: 13px; }
+    .modal input:focus, .modal select:focus { border-color: #378ADD; }
+    .modal-btns { display: flex; gap: 10px; }
+    .btn-cancel { flex: 1; padding: 13px; border: 1px solid #ddd; border-radius: 10px; background: none; font-size: 15px; cursor: pointer; color: #666; }
+    .btn-add { flex: 2; padding: 13px; border: none; border-radius: 10px; background: #1a1a1a; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+
+    .fab { position: fixed; bottom: 28px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: #1a1a1a; color: #fff; font-size: 26px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(0,0,0,0.25); z-index: 50; }
+    .fab:active { transform: scale(0.95); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="header-left">
+      <h1>Mi presupuesto</h1>
+      <p>50 · 30 · 20 con IA</p>
+    </div>
+    <div class="api-indicator" id="apiIndicator" onclick="openApiModal()">⚠ Sin API Key</div>
+  </div>
+
+  <div class="setup-banner" id="setupBanner">
+    <h3>🔑 Configurá tu API Key de Claude</h3>
+    <p>Para clasificar cualquier gasto automáticamente necesitás una clave de Anthropic. Es gratis para uso personal.</p>
+    <p>1. Entrá a <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br>
+       2. Creá cuenta → sección "API Keys" → "Create Key"<br>
+       3. Copiá la clave y pegala acá:</p>
+    <div class="setup-input-row">
+      <input class="setup-input" id="apiKeyBanner" type="password" placeholder="sk-ant-api03-...">
+      <button class="btn-save-key" onclick="saveApiKeyBanner()">Guardar</button>
+    </div>
+  </div>
+
+  <div class="mic-section">
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()">🎙</button>
+    <div class="mic-status" id="micStatus">Tocá para hablar</div>
+    <div class="transcript-box" id="transcriptBox"></div>
+    <div class="result-box" id="resultBox"></div>
+    <div class="hint">
+      <strong>Decí lo que quieras, por ejemplo:</strong><br>
+      "Salario de marzo 1.500.000"<br>
+      "Compré cervezas, 8 mil"<br>
+      "Fui al dentista, 25 mil"<br>
+      "Puse en plazo fijo 50 mil"<br>
+      "Cena con amigos 15 mil"
+    </div>
+  </div>
+
+  <div class="income-card" onclick="openIncomeModal()">
+    <div>
+      <div class="income-label">Ingreso del mes</div>
+      <div class="income-val" id="incomeVal">$0</div>
+    </div>
+    <div class="income-edit">✏️ Editar</div>
+  </div>
+
+  <div class="donut-card">
+    <div class="donut-wrap">
+      <svg viewBox="0 0 130 130" id="donutSvg"></svg>
+      <div class="donut-center">
+        <div class="donut-total" id="donutTotal">$0</div>
+        <div class="donut-lbl">ingreso</div>
+      </div>
+    </div>
+    <div class="donut-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div><div><div class="legend-text">Necesidades 50%</div><div class="legend-amount" id="legNec">$0</div></div></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#378ADD"></div><div><div class="legend-text">Deseos 30%</div><div class="legend-amount" id="legDes">$0</div></div></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#BA7517"></div><div><div class="legend-text">Ahorro 20%</div><div class="legend-amount" id="legAho">$0</div></div></div>
+    </div>
+  </div>
+
+  <div style="height:4px"></div>
+  <div class="section-title">Gastos registrados</div>
+  <div class="categories" id="catContainer"></div>
+</div>
+
+<button class="fab" onclick="openManualModal()">+</button>
+
+<!-- MODAL MANUAL -->
+<div class="overlay" id="manualOverlay" onclick="if(event.target===this)closeManualModalDirect()">
+  <div class="modal">
+    <h3>Agregar manualmente</h3>
+    <input type="text" id="manualName" placeholder="Descripción (ej: Supermercado)">
+    <input type="number" id="manualAmount" placeholder="Importe (ej: 20000)" inputmode="numeric">
+    <select id="manualCat">
+      <option value="nec">Necesidades (50%)</option>
+      <option value="des">Deseos (30%)</option>
+      <option value="aho">Ahorro (20%)</option>
+    </select>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeManualModalDirect()">Cancelar</button>
+      <button class="btn-add" onclick="addManual()">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INGRESO -->
+<div class="overlay" id="incomeOverlay" onclick="if(event.target===this)closeIncomeModalDirect()">
+  <div class="modal">
+    <h3>Ingreso mensual</h3>
+    <input type="number" id="incomeInput" placeholder="Ej: 1500000" inputmode="numeric">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeIncomeModalDirect()">Cancelar</button>
+      <button class="btn-add" onclick="saveIncome()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL API KEY -->
+<div class="overlay" id="apiOverlay" onclick="if(event.target===this)closeApiModalDirect()">
+  <div class="modal">
+    <h3>🔑 API Key de Anthropic</h3>
+    <p class="modal-sub">Se guarda solo en tu dispositivo (localStorage). Nunca se envía a ningún servidor propio, va directo a api.anthropic.com.</p>
+    <input type="password" id="apiKeyModal" placeholder="sk-ant-api03-...">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="clearApiKey()">Borrar clave</button>
+      <button class="btn-add" onclick="saveApiKeyModal()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CATS = [
+  { id:'nec', name:'Necesidades', pct:50, color:'#1D9E75' },
+  { id:'des', name:'Deseos',      pct:30, color:'#378ADD' },
+  { id:'aho', name:'Ahorro',      pct:20, color:'#BA7517' }
+];
+
+let income = 0;
+const expenses = { nec:[], des:[], aho:[] };
+
+// ── Persistencia ──────────────────────────────────────────────────────────
+function save() {
+  try { localStorage.setItem('pp_income', income); localStorage.setItem('pp_expenses', JSON.stringify(expenses)); } catch(e){}
+}
+function load() {
+  try {
+    const i = localStorage.getItem('pp_income'); if(i) income = parseFloat(i)||0;
+    const e = localStorage.getItem('pp_expenses'); if(e) Object.assign(expenses, JSON.parse(e));
+  } catch(e){}
+}
+
+// ── API Key ───────────────────────────────────────────────────────────────
+function getKey() { try { return localStorage.getItem('pp_apikey')||''; } catch(e){ return ''; } }
+function setKey(k) { try { localStorage.setItem('pp_apikey', k.trim()); } catch(e){} }
+
+function saveApiKeyBanner() {
+  const k = document.getElementById('apiKeyBanner').value.trim();
+  if(!k) return;
+  if(!k.startsWith('sk-ant')) { alert('La clave debe empezar con sk-ant-...'); return; }
+  setKey(k); updateApiUI();
+}
+function saveApiKeyModal() {
+  const k = document.getElementById('apiKeyModal').value.trim();
+  if(k && !k.startsWith('sk-ant')) { alert('La clave debe empezar con sk-ant-...'); return; }
+  if(k) setKey(k);
+  closeApiModalDirect(); updateApiUI();
+}
+function clearApiKey() { setKey(''); closeApiModalDirect(); updateApiUI(); }
+
+function updateApiUI() {
+  const ok = !!getKey();
+  const ind = document.getElementById('apiIndicator');
+  ind.textContent = ok ? '✓ IA activa' : '⚠ Sin API Key';
+  ind.className = 'api-indicator ' + (ok ? 'api-ok' : 'api-missing');
+  document.getElementById('setupBanner').style.display = ok ? 'none' : 'block';
+}
+
+function openApiModal() {
+  document.getElementById('apiKeyModal').value = getKey();
+  document.getElementById('apiOverlay').classList.add('active');
+}
+function closeApiModalDirect() { document.getElementById('apiOverlay').classList.remove('active'); }
+
+// ── Claude API (via Netlify proxy) ────────────────────────────────────────
+async function classifyWithClaude(text) {
+  const key = getKey();
+  if(!key) throw new Error('Configurá tu API Key primero (botón arriba a la derecha).');
+
+  const resp = await fetch('/.netlify/functions/classify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, apiKey: key })
+  });
+
+  const raw = await resp.text();
+
+  if(!resp.ok) {
+    let msg = 'Error '+resp.status;
+    try { msg = JSON.parse(raw).error || msg; } catch(e){}
+    if(resp.status===401) throw new Error('API Key inválida. Revisala en el botón de arriba.');
+    if(resp.status===429) throw new Error('Límite de uso alcanzado. Esperá unos segundos.');
+    throw new Error(msg);
+  }
+
+  return JSON.parse(raw.replace(/```json|```/g,'').trim());
+}
+
+async function processCommand(text) {
+  const d = new Date();
+  const dateStr = d.getDate()+' '+['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()];
+
+  let r;
+  try { r = await classifyWithClaude(text); }
+  catch(e) { return { ok:false, msg:'⚠ '+e.message }; }
+
+  if(!r.amount || r.amount < 1) return { ok:false, msg:'No encontré un monto en lo que dijiste.' };
+  if(r.type === 'unknown') return { ok:false, msg:'No pude clasificarlo. Intentá ser más específico.' };
+
+  if(r.type === 'income') {
+    income = r.amount; save(); render();
+    return { ok:true, msg:'💰 Ingreso registrado: '+fmtFull(r.amount) };
+  }
+
+  if(['nec','des','aho'].includes(r.type)) {
+    expenses[r.type].push({ name: r.name||'Gasto', amount: r.amount, date: dateStr });
+    save(); render();
+    const cat = CATS.find(c=>c.id===r.type).name;
+    return { ok:true, msg:'✓ '+r.name+' → '+cat+': '+fmtFull(r.amount)+'\n'+r.reason };
+  }
+
+  return { ok:false, msg:'Respuesta inesperada.' };
+}
+
+// ── Formato ───────────────────────────────────────────────────────────────
+function fmtFull(n) { return '$'+Math.round(n).toLocaleString('es-AR'); }
+function fmt(n) { return n>=1000000?'$'+(n/1000000).toFixed(1).replace('.',',')+'M':n>=1000?'$'+Math.round(n/1000)+'k':fmtFull(n); }
+
+// ── Donut ─────────────────────────────────────────────────────────────────
+function drawDonut() {
+  const svg=document.getElementById('donutSvg'), cx=65,cy=65,r=50,sw=16,τ=2*Math.PI;
+  let html='',angle=0;
+  CATS.forEach(c=>{
+    const frac=income>0?c.pct/100:1/3, sweep=frac*τ;
+    const x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle);
+    const x2=cx+r*Math.cos(angle+sweep-0.01),y2=cy+r*Math.sin(angle+sweep-0.01);
+    html+=`<path d="M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${sweep>Math.PI?1:0},1 ${x2.toFixed(2)},${y2.toFixed(2)}" fill="none" stroke="${income>0?c.color:'#e8e6e0'}" stroke-width="${sw}"/>`;
+    angle+=sweep;
+  });
+  svg.innerHTML=html;
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
+function render() {
+  document.getElementById('incomeVal').textContent=fmtFull(income);
+  document.getElementById('donutTotal').textContent=fmt(income);
+  document.getElementById('legNec').textContent=fmtFull(income*.5);
+  document.getElementById('legDes').textContent=fmtFull(income*.3);
+  document.getElementById('legAho').textContent=fmtFull(income*.2);
+  drawDonut();
+  const c=document.getElementById('catContainer'); c.innerHTML='';
+  CATS.forEach(cat=>{
+    const budget=income*(cat.pct/100), list=expenses[cat.id]||[];
+    const spent=list.reduce((s,i)=>s+i.amount,0), remaining=budget-spent;
+    const pct=budget>0?Math.min(spent/budget,1):0;
+    const bc=remaining>=0?(pct<0.8?'badge-ok':'badge-warn'):'badge-over';
+    const bt=remaining>=0?'Disponible '+fmtFull(remaining):'Excedido '+fmtFull(-remaining);
+    const rows=list.map((item,idx)=>`<div class="expense-row"><div><div class="exp-name">${item.name}</div><div class="exp-date">${item.date}</div></div><div class="exp-right"><div class="exp-amount">-${fmtFull(item.amount)}</div><button class="del-btn" onclick="del('${cat.id}',${idx})">✕</button></div></div>`).join('');
+    c.innerHTML+=`<div class="cat-card"><div class="cat-header"><div class="cat-left"><div class="cat-dot" style="background:${cat.color}"></div><div class="cat-name">${cat.name}</div><span class="cat-pct">${cat.pct}%</span></div><div class="cat-right"><div class="cat-budget">${fmtFull(budget)}</div><div class="badge ${bc}">${bt}</div></div></div><div class="progress-bar"><div class="progress-fill" style="width:${(pct*100).toFixed(1)}%;background:${cat.color}"></div></div><div class="expenses-list">${rows||'<div class="empty-msg">Sin gastos aún</div>'}</div></div>`;
+  });
+}
+function del(id,idx){ expenses[id].splice(idx,1); save(); render(); }
+
+// ── Modals ────────────────────────────────────────────────────────────────
+function openManualModal(){ document.getElementById('manualOverlay').classList.add('active'); }
+function closeManualModalDirect(){ document.getElementById('manualOverlay').classList.remove('active'); document.getElementById('manualName').value=''; document.getElementById('manualAmount').value=''; }
+function addManual(){
+  const name=document.getElementById('manualName').value.trim(), amount=parseFloat(document.getElementById('manualAmount').value)||0, catId=document.getElementById('manualCat').value;
+  if(!name||amount<=0){ alert('Completá nombre e importe.'); return; }
+  const d=new Date(),ms=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  expenses[catId].push({name,amount,date:d.getDate()+' '+ms[d.getMonth()]});
+  save(); render(); closeManualModalDirect();
+}
+function openIncomeModal(){ document.getElementById('incomeInput').value=income||''; document.getElementById('incomeOverlay').classList.add('active'); }
+function closeIncomeModalDirect(){ document.getElementById('incomeOverlay').classList.remove('active'); }
+function saveIncome(){ const v=parseFloat(document.getElementById('incomeInput').value)||0; if(v>0){income=v;save();render();} closeIncomeModalDirect(); }
+
+// ── Speech ────────────────────────────────────────────────────────────────
+let recognition=null, listening=false;
+
+function setupSpeech(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR) return false;
+  recognition=new SR();
+  recognition.lang='es-AR'; recognition.interimResults=true; recognition.maxAlternatives=1; recognition.continuous=false;
+
+  recognition.onstart=()=>{
+    listening=true;
+    document.getElementById('micBtn').className='mic-btn listening';
+    document.getElementById('micBtn').textContent='🔴';
+    document.getElementById('micStatus').textContent='Escuchando...';
+    document.getElementById('transcriptBox').className='transcript-box visible';
+    document.getElementById('transcriptBox').textContent='...';
+    document.getElementById('resultBox').style.display='none';
+  };
+
+  recognition.onresult=(e)=>{
+    let interim='',final='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) final+=e.results[i][0].transcript;
+      else interim+=e.results[i][0].transcript;
+    }
+    document.getElementById('transcriptBox').textContent=final||interim||'...';
+    if(final){
+      listening=false;
+      document.getElementById('micBtn').className='mic-btn processing';
+      document.getElementById('micBtn').textContent='⏳';
+      document.getElementById('micStatus').textContent='Clasificando con IA...';
+      processCommand(final).then(res=>{
+        const box=document.getElementById('resultBox');
+        box.className='result-box '+(res.ok?'ok':'err');
+        box.textContent=res.msg;
+        document.getElementById('micBtn').className='mic-btn';
+        document.getElementById('micBtn').textContent='🎙';
+        document.getElementById('micStatus').textContent='Tocá para hablar';
+      });
+    }
+  };
+
+  recognition.onerror=(e)=>{
+    listening=false;
+    document.getElementById('micBtn').className='mic-btn';
+    document.getElementById('micBtn').textContent='🎙';
+    const msgs={
+      'not-allowed':'Permití el micrófono en Chrome',
+      'no-speech':'No escuché nada, intentá de nuevo',
+      'network':'Error de red'
+    };
+    document.getElementById('micStatus').textContent=msgs[e.error]||'Error: '+e.error;
+  };
+
+  recognition.onend=()=>{
+    if(listening){ listening=false; document.getElementById('micBtn').className='mic-btn'; document.getElementById('micBtn').textContent='🎙'; document.getElementById('micStatus').textContent='Tocá para hablar'; }
+  };
+  return true;
+}
+
+function toggleMic(){
+  if(!getKey()){ alert('Primero configurá tu API Key de Anthropic (botón arriba a la derecha).'); return; }
+  if(!recognition&&!setupSpeech()){ document.getElementById('micStatus').textContent='Usá Chrome para el reconocimiento de voz.'; return; }
+  if(listening){ recognition.stop(); return; }
+  try{ recognition.start(); } catch(e){ recognition=null; setupSpeech(); try{ recognition.start(); }catch(e2){} }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+load(); render(); updateApiUI();
+</script>
+</body>
+</html>

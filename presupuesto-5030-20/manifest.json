@@ -1,0 +1,17 @@
+{
+  "name": "Mi Presupuesto 50/30/20",
+  "short_name": "Presupuesto",
+  "description": "Control de gastos con regla 50-30-20 y reconocimiento de voz",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#f5f4f0",
+  "theme_color": "#ffffff",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%231a1a1a'/><text x='96' y='130' font-size='100' text-anchor='middle'>💰</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
