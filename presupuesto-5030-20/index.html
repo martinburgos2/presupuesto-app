@@ -277,7 +277,7 @@ async function classifyWithClaude(text) {
   const resp = await fetch('/.netlify/functions/classify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, apiKey: key })
+    body: JSON.stringify({ text: text, apiKey: key })
   });
 
   const raw = await resp.text();
